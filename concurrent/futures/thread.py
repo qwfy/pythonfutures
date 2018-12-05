@@ -112,7 +112,7 @@ class ThreadPoolExecutor(_base.Executor):
     _counter = itertools.count().next
 
     def __init__(self, max_workers=None, thread_name_prefix='',
-                 initializer=None, initargs=()):
+                 initializer=None, initargs=(), preallocate=False):
         """Initializes a new ThreadPoolExecutor instance.
 
         Args:
@@ -142,6 +142,14 @@ class ThreadPoolExecutor(_base.Executor):
                                     ("ThreadPoolExecutor-%d" % self._counter()))
         self._initializer = initializer
         self._initargs = initargs
+
+        # Start all workers, this is useful if the worker takes much time to
+        # initialize, and you cannot afford the latency.
+        if preallocate:
+            with self._shutdown_lock:
+                # TODO @incomplete: I'm not sure what's the purpose of this lock
+                for _ in range(self._max_workers):
+                    self._adjust_thread_count()
 
     def submit(self, fn, *args, **kwargs):
         with self._shutdown_lock:
